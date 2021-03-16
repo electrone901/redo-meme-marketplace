@@ -1,3 +1,5 @@
+// This file generates an identity by using Libp2pCryptoIdentity whis is a  user identity providers based on PKI  public-key infrastructure (e.g. 3Box, uPort, Blockstack)
+
 import types from "../constants";
 import { Buckets } from "@textile/hub";
 import { Libp2pCryptoIdentity } from "@textile/threads-core";
@@ -17,6 +19,7 @@ import {
 const getIdentity = async () => {
   const queryString = window.location.search;
   const urlParams = new URLSearchParams(queryString);
+
   try {
     if (urlParams.get("force")) {
       window.history.replaceState({}, document.title, "/");
@@ -35,7 +38,6 @@ const getIdentity = async () => {
     try {
       /** Random new identity */
       const identity = await Libp2pCryptoIdentity.fromRandom();
-
       /** Convert to string. */
       const identityString = identity.toString();
 
@@ -54,6 +56,7 @@ const getIdentity = async () => {
  * Keeps private key locally in the app.
  */
 const loginWithChallenge = async (id) => {
+  console.log("🚀 id", id)
   return new Promise((resolve, reject) => {
     /**
      * Configured for our development server
@@ -69,6 +72,7 @@ const loginWithChallenge = async (id) => {
     socket.onopen = () => {
       /** Get public key string */
       const publicKey = id.public.toString();
+      console.log("publicKey", publicKey)
 
       /** Send a new token request */
       socket.send(
@@ -80,10 +84,13 @@ const loginWithChallenge = async (id) => {
 
       /** Listen for messages from the server */
       socket.onmessage = async (event) => {
+        console.log("what is  event", event)
         const data = JSON.parse(event.data);
+        console.log(".onmessage= ~ data", data)
         switch (data.type) {
           /** Error never happen :) */
           case "error": {
+            console.log("error")
             reject(data.value);
             break;
           }
@@ -126,14 +133,14 @@ class HubClient {
   /** The Bucket Key */
   bucketKey;
 
-  constructor() {}
+  constructor() { }
 
   setupIdentity = async () => {
     /** Create or get identity */
     this.id = await getIdentity();
-
     /** Get the public key */
     const publicKey = this.id.public.toString();
+    console.log("this", this, "publicKey", publicKey)
 
     /** Return the publicKey short ID */
     return publicKey;
@@ -148,14 +155,14 @@ class HubClient {
    * see index.html for example running this method
    */
   login = async () => {
+    console.log("login")
     if (!this.id) {
+      console.log("are u getting here")
       throw Error("No user ID found");
     }
-
     /** Use the identity to request a new API token */
+    console.log("****this.auth", this);
     this.auth = await loginWithChallenge(this.id);
-
-    console.log("Verified on Textile API");
 
     /* Return auth details */
     return this.auth;
@@ -164,6 +171,7 @@ class HubClient {
   createBucket = async () => {
     /** Authenticate and open a Bucket */
     this.buckets = await Buckets.withUserAuth(this.auth);
+    console.log("****", this.buckets)
     const root = await this.buckets.open("memes");
     this.bucketKey = root.key;
     return this.buckets;
@@ -199,8 +207,10 @@ export const loginAndCreateBucket = () => async (dispatch) => {
   document.getElementById("login").innerHTML = "Creating Hub Identity...";
 
   // Logging In
+
   await hubClient.setupIdentity();
   const auth = await hubClient.login();
+  console.log("auth", auth)
 
   dispatch({
     type: types.LOGIN,
